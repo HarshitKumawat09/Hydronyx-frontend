@@ -94,5 +94,5 @@ Deploy to Vercel:
 ```bash
 vercel deploy
 ```
-
+---
 Or any Node.js hosting platform.
