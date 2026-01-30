@@ -27,6 +27,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import ConfidenceMap from '@/app/components/ConfidenceMap';
+import UncertaintyChart from '@/app/components/UncertaintyChart';
 
 interface ForecastData {
   params: {
@@ -323,6 +325,9 @@ function ForecastContent() {
                       <Line type="monotone" dataKey="predicted" stroke="#00d4ff" strokeWidth={2} strokeDasharray="5 5" name="Predicted GW Level" dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
+                  <div className="mt-6">
+                    <UncertaintyChart state={selectedState} horizon={forecastHorizon} />
+                  </div>
                 </div>
 
                 {/* Configuration */}
@@ -370,6 +375,7 @@ function ForecastContent() {
                     <Zap size={20} />
                     {generating ? 'Generating...' : 'Generate Forecast'}
                   </button>
+                  <ConfidenceMap />
                 </div>
               </div>
 
