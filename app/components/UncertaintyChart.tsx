@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { fetchWithAuth } from "@/lib/api";
 
 interface Point {
   date: string;
@@ -31,11 +32,8 @@ export default function UncertaintyChart({ state, horizon }: { state: string; ho
       setLoading(true);
       setError("");
       try {
-        const token = localStorage.getItem("access_token");
         const params = new URLSearchParams({ state, horizon: String(horizon) });
-        const res = await fetch(`http://localhost:8000/api/validation/uncertainty?${params.toString()}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const res = await fetchWithAuth(`/api/validation/uncertainty?${params.toString()}`);
         if (!res.ok) throw new Error("Failed to fetch uncertainty data");
         const j = await res.json();
         setData(j.predictions || []);

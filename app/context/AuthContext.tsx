@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiUrl } from '@/lib/api';
 
 interface User {
   email: string;
@@ -28,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
-          const response = await fetch('http://localhost:8000/api/auth/me', {
+          const response = await fetch(`${apiUrl}/api/auth/me`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/auth/login', {
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -73,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('refresh_token', data.refresh_token);
 
       // Get user data
-      const userResponse = await fetch('http://localhost:8000/api/auth/me', {
+      const userResponse = await fetch(`${apiUrl}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${data.access_token}`,
         },

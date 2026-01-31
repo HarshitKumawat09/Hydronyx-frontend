@@ -28,6 +28,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { fetchWithAuth } from '@/lib/api';
 
 interface ValidationMetrics {
   rmse: number;
@@ -91,44 +92,25 @@ function ValidationContent() {
         return;
       }
 
-      // Load validation metrics
-      const metricsResponse = await fetch('http://localhost:8000/api/validation/metrics', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
+      const metricsResponse = await fetchWithAuth('/api/validation/metrics');
       if (!metricsResponse.ok) {
         throw new Error('Failed to load validation metrics');
       }
-
       const metrics: ValidationData = await metricsResponse.json();
       setValidationData(metrics);
 
-      // Load metrics history
       try {
-        const historyResponse = await fetch('http://localhost:8000/api/validation/metrics/history?limit=10', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
+        const historyResponse = await fetchWithAuth('/api/validation/metrics/history?limit=10');
         if (historyResponse.ok) {
           const historyData = await historyResponse.json();
-          setMetricsHistory(historyData.history);
+          setMetricsHistory(historyData.history || []);
         }
       } catch (e) {
         console.error('Failed to load metrics history:', e);
       }
 
-      // Load model info
       try {
-        const infoResponse = await fetch('http://localhost:8000/api/validation/model-info', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
+        const infoResponse = await fetchWithAuth('/api/validation/model-info');
         if (infoResponse.ok) {
           const infoData = await infoResponse.json();
           setModelInfo(infoData.model_info);

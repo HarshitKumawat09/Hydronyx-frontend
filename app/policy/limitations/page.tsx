@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { fetchWithAuth } from '@/lib/api';
 
 export default function LimitationsPage() {
   const [items, setItems] = useState<string[]>([]);
@@ -12,10 +13,7 @@ export default function LimitationsPage() {
       setLoading(true);
       setError(null);
       try {
-        const token = localStorage.getItem('access_token');
-        const res = await fetch('http://localhost:8000/api/validation/limitations', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const res = await fetchWithAuth('/api/validation/limitations');
         if (!res.ok) throw new Error('Failed to fetch limitations');
         const j = await res.json();
         setItems(j.limitations || []);

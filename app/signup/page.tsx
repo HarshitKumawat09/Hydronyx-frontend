@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Droplet, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import { apiUrl } from '@/lib/api';
 
 // Rain Effect Component (Client-side generation to prevent hydration mismatches)
 const RainEffect = () => {
@@ -77,16 +78,10 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/auth/register', {
+      const response = await fetch(`${apiUrl}/api/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
       });
 
       if (!response.ok) {
@@ -95,15 +90,10 @@ export default function Signup() {
       }
 
       // Auto login after signup
-      const loginResponse = await fetch('http://localhost:8000/api/auth/login', {
+      const loginResponse = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
 
       if (loginResponse.ok) {

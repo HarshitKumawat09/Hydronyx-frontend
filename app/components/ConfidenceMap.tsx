@@ -1,9 +1,8 @@
 "use client";
 
-"use client";
-
 import { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
+import { fetchWithAuth } from "@/lib/api";
 
 const MapViewer = dynamic(() => import("./ConfidenceMapMap"), { ssr: false });
 
@@ -25,18 +24,12 @@ export default function ConfidenceMap() {
       setLoading(true);
       setError("");
       try {
-        const token = localStorage.getItem("access_token");
-        const res = await fetch("http://localhost:8000/api/validation/confidence-map", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const res = await fetchWithAuth("/api/validation/confidence-map");
         if (!res.ok) throw new Error("Failed to fetch confidence map");
         const data = await res.json();
         setEntries(data.entries || []);
 
-        // Try to load regions geojson from backend static data
-        const gjRes = await fetch("http://localhost:8000/api/validation/regions", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const gjRes = await fetchWithAuth("/api/validation/regions");
         if (gjRes.ok) {
           const gj = await gjRes.json();
           // attach confidence to features by state name lowercased
@@ -63,11 +56,8 @@ export default function ConfidenceMap() {
   const fetchDistricts = async (stateName: string) => {
     setDistrictEntries(null);
     try {
-      const token = localStorage.getItem('access_token');
       const q = encodeURIComponent(stateName);
-      const res = await fetch(`http://localhost:8000/api/validation/confidence-map/districts?state=${q}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await fetchWithAuth(`/api/validation/confidence-map/districts?state=${q}`);
       if (!res.ok) throw new Error('Failed to fetch district confidence');
       const data = await res.json();
       setDistrictEntries(data.entries || []);

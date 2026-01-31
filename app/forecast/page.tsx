@@ -29,20 +29,23 @@ import {
 } from 'recharts';
 import ConfidenceMap from '@/app/components/ConfidenceMap';
 import UncertaintyChart from '@/app/components/UncertaintyChart';
+import { fetchWithAuth } from '@/lib/api';
 
 interface ForecastData {
   params: {
     state: string;
     district: string;
     forecast_horizon: number;
-    rainfall: number;
-    lagging_gw: number;
+    rainfall_value?: number;
+    lag_gw?: number;
   };
   result: {
     predicted_level: number;
     confidence: number;
     uncertainty: number;
     physics_compliance: number;
+    source?: string;
+    predictions_monthly?: Array<{ month: number; predicted_level: number; lower_bound: number; upper_bound: number }>;
   };
   timestamp: string;
 }
@@ -58,8 +61,10 @@ export default function Forecast() {
 function ForecastContent() {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [selectedState, setSelectedState] = useState('Maharashtra');
-  const [selectedDistrict, setSelectedDistrict] = useState('Pune');
+  const [states, setStates] = useState<string[]>([]);
+  const [districts, setDistricts] = useState<string[]>([]);
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [forecastHorizon, setForecastHorizon] = useState(6);
   const [rainfall, setRainfall] = useState(100);
   const [laggingGW, setLaggingGW] = useState(45.0);
@@ -70,40 +75,37 @@ function ForecastContent() {
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // State to district mapping
-  const stateDistrictMap: { [key: string]: string[] } = {
-    Maharashtra: ['Pune', 'Mumbai', 'Nagpur', 'Aurangabad', 'Nashik'],
-    Haryana: ['Faridabad', 'Gurgaon', 'Hisar', 'Rohtak', 'Panipat'],
-    Punjab: ['Ludhiana', 'Amritsar', 'Jalandhar', 'Chandigarh', 'Bathinda'],
-    'Uttar Pradesh': ['Lucknow', 'Kanpur', 'Agra', 'Varanasi', 'Allahabad'],
-  };
+  const chartData = currentForecast?.result?.predictions_monthly?.length
+    ? currentForecast.result.predictions_monthly.map((p) => ({
+        month: p.month,
+        predicted: p.predicted_level,
+        lower: p.lower_bound,
+        upper: p.upper_bound,
+      }))
+    : [];
 
-  const getDistricts = () => {
-    return stateDistrictMap[selectedState] || [];
+  const loadDistricts = async (state: string) => {
+    if (!state) return;
+    try {
+      const res = await fetchWithAuth(`/api/districts?state=${encodeURIComponent(state)}`);
+      if (res.ok) {
+        const list: string[] = await res.json();
+        const arr = Array.isArray(list) ? list : [];
+        setDistricts(arr);
+        if (arr.length) setSelectedDistrict(arr[0]);
+      } else {
+        setDistricts([]);
+      }
+    } catch {
+      setDistricts([]);
+    }
   };
 
   const handleStateChange = (newState: string) => {
     setSelectedState(newState);
-    const districts = stateDistrictMap[newState] || [];
-    if (districts.length > 0) {
-      setSelectedDistrict(districts[0]);
-    }
+    setSelectedDistrict('');
+    loadDistricts(newState);
   };
-
-  const generateChartData = () => {
-    const data = [];
-    const baseLevel = currentForecast?.result.predicted_level || 45;
-    for (let i = 0; i <= forecastHorizon; i++) {
-      data.push({
-        month: i,
-        actual: i === 0 ? baseLevel : baseLevel + Math.sin(i) * 2 + (Math.random() - 0.5) * 1,
-        predicted: baseLevel + (i * 0.15) + Math.sin(i * 0.5) * 1.5,
-      });
-    }
-    return data;
-  };
-
-  const chartData = generateChartData();
 
   useEffect(() => {
     loadUserData();
@@ -120,27 +122,46 @@ function ForecastContent() {
         return;
       }
 
-      const historyResponse = await fetch(
-        'http://localhost:8000/api/forecast/history?limit=10',
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
+      const [historyRes, statesRes] = await Promise.all([
+        fetchWithAuth('/api/forecast/history?limit=10'),
+        fetchWithAuth('/api/states'),
+      ]);
 
-      if (historyResponse.ok) {
-        const historyData = await historyResponse.json();
-        setHistory(historyData.data || []);
-        if (historyData.data && historyData.data.length > 0) {
-          setCurrentForecast(historyData.data[0]);
+      const stateList: string[] = statesRes.ok ? await statesRes.json() : [];
+      const list = Array.isArray(stateList) ? stateList : [];
+      setStates(list);
+
+      const historyData = historyRes.ok ? await historyRes.json() : { forecasts: [] };
+      const forecastList = historyData.forecasts || [];
+      setHistory(forecastList);
+
+      const latest = forecastList[0];
+      if (latest) {
+        setCurrentForecast(latest);
+        const state = latest.params?.state || list[0];
+        const district = latest.params?.district || '';
+        setSelectedState(state || '');
+        const distRes = await fetchWithAuth(`/api/districts?state=${encodeURIComponent(state)}`);
+        if (distRes.ok) {
+          const distList: string[] = await distRes.json();
+          const dArr = Array.isArray(distList) ? distList : [];
+          setDistricts(dArr);
+          setSelectedDistrict(dArr.includes(district) ? district : dArr[0] || '');
+        }
+      } else if (list.length) {
+        setSelectedState(list[0]);
+        const distRes = await fetchWithAuth(`/api/districts?state=${encodeURIComponent(list[0])}`);
+        if (distRes.ok) {
+          const distList: string[] = await distRes.json();
+          const dArr = Array.isArray(distList) ? distList : [];
+          setDistricts(dArr);
+          if (dArr.length) setSelectedDistrict(dArr[0]);
         }
       }
 
       setDataLoading(false);
-    } catch (error) {
-      console.error('Failed to load user data:', error);
-      setError(`Failed to load data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (err) {
+      setError(`Failed to load data: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setDataLoading(false);
     }
   };
@@ -156,12 +177,8 @@ function ForecastContent() {
         return;
       }
 
-      const response = await fetch('http://localhost:8000/api/forecast/generate', {
+      const response = await fetchWithAuth('/api/forecast/generate', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           state: selectedState,
           district: selectedDistrict,
@@ -172,7 +189,7 @@ function ForecastContent() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || 'Failed to generate forecast');
       }
 
@@ -184,10 +201,9 @@ function ForecastContent() {
       };
 
       setCurrentForecast(newForecast);
-      setHistory([newForecast, ...history]);
-    } catch (error) {
-      console.error('Forecast generation error:', error);
-      setError(`Error: ${error instanceof Error ? error.message : 'Failed to generate forecast'}`);
+      setHistory((prev) => [newForecast, ...prev]);
+    } catch (err) {
+      setError(`Error: ${err instanceof Error ? err.message : 'Failed to generate forecast'}`);
     } finally {
       setGenerating(false);
     }
@@ -292,7 +308,7 @@ function ForecastContent() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400 mb-2">Physics Compliance</p>
-                      <p className="text-2xl font-bold text-cyan-400">{currentForecast?.result.physics_compliance || 90}%</p>
+                      <p className="text-2xl font-bold text-cyan-400">{currentForecast?.result.physics_compliance != null ? Math.round(currentForecast.result.physics_compliance * 100) : '—'}%</p>
                     </div>
                     <CheckCircle className="w-8 h-8 text-cyan-400 opacity-50" />
                   </div>
@@ -302,7 +318,7 @@ function ForecastContent() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400 mb-2">Uncertainty</p>
-                      <p className="text-2xl font-bold text-blue-400">{currentForecast?.result.uncertainty || 0.5}m</p>
+                      <p className="text-2xl font-bold text-blue-400">{currentForecast?.result.uncertainty != null ? currentForecast.result.uncertainty.toFixed(2) : '—'}m</p>
                     </div>
                     <TrendingUp className="w-8 h-8 text-blue-400 opacity-50" />
                   </div>
@@ -313,18 +329,27 @@ function ForecastContent() {
               <div className="grid grid-cols-3 gap-8">
                 {/* Chart */}
                 <div className="col-span-2 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl p-6">
-                  <h2 className="text-xl font-bold text-white mb-6">Groundwater Forecast - {selectedState}</h2>
-                  <ResponsiveContainer width="100%" height={350}>
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                      <XAxis dataKey="month" stroke="#888" label={{ value: 'Months Ahead', position: 'insideBottomRight', offset: -5 }} />
-                      <YAxis stroke="#888" label={{ value: 'Level (m)', angle: -90, position: 'insideLeft' }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0a1428', border: '1px solid #00d4ff' }} />
-                      <Legend />
-                      <Line type="monotone" dataKey="actual" stroke="#00d4ff" strokeWidth={2} name="95% Confidence" dot={false} />
-                      <Line type="monotone" dataKey="predicted" stroke="#00d4ff" strokeWidth={2} strokeDasharray="5 5" name="Predicted GW Level" dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <h2 className="text-xl font-bold text-white mb-6">Groundwater Forecast (ST-GNN) — {selectedState}</h2>
+                  {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={350}>
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                        <XAxis dataKey="month" stroke="#888" label={{ value: 'Months Ahead', position: 'insideBottomRight', offset: -5 }} />
+                        <YAxis stroke="#888" label={{ value: 'Level (m)', angle: -90, position: 'insideLeft' }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#0a1428', border: '1px solid #00d4ff' }} formatter={(v: number) => [v?.toFixed(2) ?? v, '']} />
+                        <Legend />
+                        <Line type="monotone" dataKey="predicted" stroke="#00d4ff" strokeWidth={2} name="Predicted GW Level" dot={false} />
+                        {chartData.some((d) => d.upper != null) && (
+                          <Line type="monotone" dataKey="upper" stroke="#06b6d4" strokeWidth={1} strokeDasharray="3 3" name="Upper bound" dot={false} />
+                        )}
+                        {chartData.some((d) => d.lower != null) && (
+                          <Line type="monotone" dataKey="lower" stroke="#06b6d4" strokeWidth={1} strokeDasharray="3 3" name="Lower bound" dot={false} />
+                        )}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-gray-400">Generate a forecast to see ST-GNN predictions</div>
+                  )}
                   <div className="mt-6">
                     <UncertaintyChart state={selectedState} horizon={forecastHorizon} />
                   </div>
@@ -338,18 +363,17 @@ function ForecastContent() {
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">Select State</label>
                         <select value={selectedState} onChange={(e) => handleStateChange(e.target.value)} className="w-full px-4 py-2 bg-slate-800 border border-cyan-500/30 text-white rounded-lg focus:outline-none focus:border-cyan-400">
-                          <option>Maharashtra</option>
-                          <option>Haryana</option>
-                          <option>Punjab</option>
-                          <option>Uttar Pradesh</option>
+                          {states.map((s) => (
+                            <option key={s}>{s}</option>
+                          ))}
                         </select>
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">District</label>
                         <select value={selectedDistrict} onChange={(e) => setSelectedDistrict(e.target.value)} className="w-full px-4 py-2 bg-slate-800 border border-cyan-500/30 text-white rounded-lg focus:outline-none focus:border-cyan-400">
-                          {getDistricts().map((district) => (
-                            <option key={district}>{district}</option>
+                          {districts.map((d) => (
+                            <option key={d}>{d}</option>
                           ))}
                         </select>
                       </div>
@@ -384,7 +408,7 @@ function ForecastContent() {
                 <div className="mt-8 grid grid-cols-3 gap-6">
                   <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl p-6">
                     <p className="text-sm text-gray-400 mb-2">Current Level</p>
-                    <p className="text-4xl font-bold text-cyan-400">{laggingGW.toFixed(2)} m</p>
+                    <p className="text-4xl font-bold text-cyan-400">{(currentForecast.params?.lag_gw ?? laggingGW).toFixed(2)} m</p>
                   </div>
 
                   <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-xl p-6">
@@ -394,7 +418,7 @@ function ForecastContent() {
 
                   <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-xl p-6">
                     <p className="text-sm text-gray-400 mb-2">Confidence</p>
-                    <p className="text-4xl font-bold text-green-400">{currentForecast.result.confidence.toFixed(1)}%</p>
+                    <p className="text-4xl font-bold text-green-400">{currentForecast.result.confidence != null ? (currentForecast.result.confidence * 100).toFixed(1) : '—'}%</p>
                   </div>
                 </div>
               )}

@@ -21,25 +21,28 @@ import {
   Search,
   ChevronRight,
 } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/api';
 
-// Define interfaces for type safety
 interface SiteData {
   id: string | number;
   explanation: string;
   impact_score: number;
   estimated_cost: number;
-  lat: number;
-  lng: number;
+  latitude: number;
+  longitude: number;
+  state?: string;
+  total_score?: number;
 }
 
 interface OptimizationResult {
   selected_sites: SiteData[];
   average_cost: number;
   total_impact: number;
-  map_center: [number, number];
-  search_area_bounds: [[number, number], [number, number]];
+  map_center: { latitude: number; longitude: number };
+  search_area_bounds: { north: number; south: number; east: number; west: number };
   metadata: {
     n_candidates_evaluated: number;
+    n_sites_selected?: number;
   };
 }
 
@@ -84,17 +87,10 @@ function OptimizerContent() {
 
   const loadStates = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        const response = await fetch('http://localhost:8000/api/optimizer/states', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setStates(data.states);
-        }
+      const response = await fetchWithAuth('/api/optimizer/states');
+      if (response.ok) {
+        const data = await response.json();
+        setStates(data.states || []);
       }
     } catch (error) {
       console.error('Failed to load states:', error);
@@ -112,16 +108,12 @@ function OptimizerContent() {
         return;
       }
 
-      const response = await fetch('http://localhost:8000/api/optimizer/optimize', {
+      const response = await fetchWithAuth('/api/optimizer/optimize', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           state: selectedState,
           objectives: selectedObjectives,
-          max_budget: maxBudget,
+          max_budget: maxBudget ?? undefined,
           nl_query: nlQuery || undefined,
           n_sites: nSites,
         }),
@@ -381,7 +373,7 @@ function OptimizerContent() {
                   <MapComponent
                     sites={result.selected_sites}
                     mapCenter={result.map_center}
-                    bounds={result.search_area_bounds}
+                    bounds={result.search_area_bounds as { north: number; south: number; east: number; west: number }}
                     onSiteSelect={(site: SiteData) => setSelectedSite(site)}
                     selectedSite={selectedSite}
                   />

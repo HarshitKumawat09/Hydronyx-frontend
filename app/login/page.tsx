@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Droplet, Eye, EyeOff } from 'lucide-react';
+import { apiUrl } from '@/lib/api';
 
 // Reusing the RainEffect component to match the Home page
 const RainEffect = () => {
@@ -39,7 +39,6 @@ const RainEffect = () => {
 };
 
 export default function Login() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -52,15 +51,10 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/auth/login', {
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
 
       if (!response.ok) {

@@ -29,6 +29,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { fetchWithAuth } from '@/lib/api';
 
 interface SimulationResult {
   baseline_trajectory: Array<{ month: number; groundwater: number; rainfall?: number }>;
@@ -77,11 +78,7 @@ function PolicyContent() {
     try {
       const token = localStorage.getItem('access_token');
       if (token) {
-        const response = await fetch('http://localhost:8000/api/policy/states', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        const response = await fetchWithAuth('/api/policy/states');
         if (response.ok) {
           const data = await response.json();
           setStates(data.states);
@@ -103,12 +100,8 @@ function PolicyContent() {
         return;
       }
 
-      const response = await fetch('http://localhost:8000/api/policy/simulate', {
+      const response = await fetchWithAuth('/api/policy/simulate', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           state: selectedState,
           pumping_change: pumpingChange,
