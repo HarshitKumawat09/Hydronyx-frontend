@@ -40,6 +40,27 @@ interface SimulationResult {
   uncertainty_margin: number;
 }
 
+interface StoredIntervention {
+  id: string;
+  user_id: string;
+  params: {
+    state: string;
+    pumping_change: number;
+    recharge_structures: number;
+    crop_intensity_change: number;
+    months_ahead: number;
+  };
+  result: {
+    mean_effect: number;
+    final_effect: number;
+    cumulative_effect: number;
+    uncertainty_margin: number;
+  };
+  baseline_trajectory: Array<{ month: number; groundwater: number; rainfall?: number }>;
+  counterfactual_trajectory: Array<{ month: number; groundwater: number; rainfall?: number }>;
+  created_at: string;
+}
+
 export default function Policy() {
   return (
     <ProtectedRoute>
@@ -60,6 +81,8 @@ function PolicyContent() {
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [error, setError] = useState('');
+  const [interventionHistory, setInterventionHistory] = useState<StoredIntervention[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [states, setStates] = useState<string[]>([
     'Maharashtra',
     'Haryana',
@@ -72,7 +95,23 @@ function PolicyContent() {
 
   useEffect(() => {
     loadStates();
+    loadInterventionHistory();
   }, []);
+
+  const loadInterventionHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetchWithAuth('/api/policy/history?limit=10');
+      if (res.ok) {
+        const data = await res.json();
+        setInterventionHistory(data.interventions || []);
+      }
+    } catch (e) {
+      console.error('Failed to load intervention history', e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
   const loadStates = async () => {
     try {
@@ -118,12 +157,24 @@ function PolicyContent() {
 
       const data: SimulationResult = await response.json();
       setSimulationResult(data);
+      await loadInterventionHistory();
     } catch (error) {
       console.error('Simulation error:', error);
       setError(`Error: ${error instanceof Error ? error.message : 'Failed to run simulation'}`);
     } finally {
       setSimulating(false);
     }
+  };
+
+  const loadStoredIntervention = (item: StoredIntervention) => {
+    setSimulationResult({
+      baseline_trajectory: item.baseline_trajectory,
+      counterfactual_trajectory: item.counterfactual_trajectory,
+      mean_effect: item.result.mean_effect,
+      final_effect: item.result.final_effect,
+      cumulative_effect: item.result.cumulative_effect,
+      uncertainty_margin: item.result.uncertainty_margin,
+    });
   };
 
   const handleLogout = () => {
@@ -451,6 +502,44 @@ function PolicyContent() {
               </div>
             </div>
           )}
+
+          {/* Recent Interventions (stored history) */}
+          <div className="mt-8 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl p-6">
+            <h2 className="text-xl font-bold text-white mb-4">Recent Interventions</h2>
+            {historyLoading ? (
+              <p className="text-gray-400 text-sm">Loading history…</p>
+            ) : interventionHistory.length === 0 ? (
+              <p className="text-gray-400 text-sm">Run a simulation to see stored interventions here.</p>
+            ) : (
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {interventionHistory.slice(0, 10).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => loadStoredIntervention(item)}
+                    className="w-full text-left p-4 bg-slate-800/50 rounded-lg border border-cyan-500/20 hover:border-cyan-400/50 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {item.params.state} · Pump {item.params.pumping_change}% · Recharge {item.params.recharge_structures}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {item.params.months_ahead} months · {typeof item.created_at === 'string' ? new Date(item.created_at).toLocaleString() : '—'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-cyan-400">
+                          {item.result.mean_effect >= 0 ? '+' : ''}{item.result.mean_effect.toFixed(3)} m
+                        </p>
+                        <p className="text-xs text-gray-400">mean effect</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer Added Here */}
