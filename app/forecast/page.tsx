@@ -29,6 +29,8 @@ import {
 } from 'recharts';
 import ConfidenceMap from '@/app/components/ConfidenceMap';
 import UncertaintyChart from '@/app/components/UncertaintyChart';
+import RiskDisclaimer from '@/app/components/RiskDisclaimer';
+import UncertaintyWarning from '@/app/components/UncertaintyWarning';
 import { fetchWithAuth } from '@/lib/api';
 
 interface ForecastData {
@@ -242,6 +244,14 @@ function ForecastContent() {
             <CheckCircle size={20} />
             {sidebarOpen && <span className="text-sm font-medium">Validation</span>}
           </Link>
+          <Link href="/alerts" className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition cursor-pointer text-gray-400 hover:bg-slate-800/50`}>
+            <AlertCircle size={20} />
+            {sidebarOpen && <span className="text-sm font-medium">Alerts</span>}
+          </Link>
+          <Link href="/drivers" className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition cursor-pointer text-gray-400 hover:bg-slate-800/50`}>
+            <BarChart3 size={20} />
+            {sidebarOpen && <span className="text-sm font-medium">Drivers</span>}
+          </Link>
         </nav>
       </div>
 
@@ -269,6 +279,17 @@ function ForecastContent() {
               <AlertCircle className="text-red-400" size={20} />
               <p className="text-red-400 text-sm">{error}</p>
             </div>
+          )}
+
+          <RiskDisclaimer variant="forecast" className="mb-6" />
+          {currentForecast && (
+            <UncertaintyWarning
+              confidence={currentForecast.result.confidence}
+              uncertainty={currentForecast.result.uncertainty}
+              confidenceThreshold={0.7}
+              uncertaintyThreshold={0.3}
+              className="mb-6"
+            />
           )}
 
           {dataLoading && (

@@ -18,6 +18,8 @@ import {
   AlertCircle,
   TrendingDown,
   Droplet,
+  FileDown,
+  GitCompare,
 } from 'lucide-react';
 import {
   LineChart,
@@ -29,7 +31,9 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { fetchWithAuth } from '@/lib/api';
+import RiskDisclaimer from '@/app/components/RiskDisclaimer';
+import UncertaintyWarning from '@/app/components/UncertaintyWarning';
+import { fetchWithAuth, apiUrl } from '@/lib/api';
 
 interface SimulationResult {
   baseline_trajectory: Array<{ month: number; groundwater: number; rainfall?: number }>;
@@ -97,6 +101,22 @@ function PolicyContent() {
     loadStates();
     loadInterventionHistory();
   }, []);
+
+  const handleExportPdf = async (interventionId: string) => {
+    try {
+      const res = await fetchWithAuth(`/api/policy/export-pdf?intervention_id=${encodeURIComponent(interventionId)}`);
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'policy_comparison.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Export failed');
+    }
+  };
 
   const loadInterventionHistory = async () => {
     setHistoryLoading(true);
@@ -249,6 +269,15 @@ function PolicyContent() {
               <AlertCircle className="text-red-400" size={20} />
               <p className="text-red-400 text-sm">{error}</p>
             </div>
+          )}
+
+          <RiskDisclaimer variant="policy" className="mb-6" />
+          {simulationResult && (
+            <UncertaintyWarning
+              uncertainty={simulationResult.uncertainty_margin}
+              uncertaintyThreshold={0.15}
+              className="mb-6"
+            />
           )}
 
           {/* Status Cards */}
@@ -513,29 +542,38 @@ function PolicyContent() {
             ) : (
               <div className="space-y-3 max-h-64 overflow-y-auto">
                 {interventionHistory.slice(0, 10).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => loadStoredIntervention(item)}
-                    className="w-full text-left p-4 bg-slate-800/50 rounded-lg border border-cyan-500/20 hover:border-cyan-400/50 transition"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-white">
-                          {item.params.state} · Pump {item.params.pumping_change}% · Recharge {item.params.recharge_structures}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {item.params.months_ahead} months · {typeof item.created_at === 'string' ? new Date(item.created_at).toLocaleString() : '—'}
-                        </p>
+                  <div key={item.id} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => loadStoredIntervention(item)}
+                      className="flex-1 text-left p-4 bg-slate-800/50 rounded-lg border border-cyan-500/20 hover:border-cyan-400/50 transition"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {item.params.state} · Pump {item.params.pumping_change}% · Recharge {item.params.recharge_structures}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {item.params.months_ahead} months · {typeof item.created_at === 'string' ? new Date(item.created_at).toLocaleString() : '—'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-cyan-400">
+                            {item.result.mean_effect >= 0 ? '+' : ''}{item.result.mean_effect.toFixed(3)} m
+                          </p>
+                          <p className="text-xs text-gray-400">mean effect</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-cyan-400">
-                          {item.result.mean_effect >= 0 ? '+' : ''}{item.result.mean_effect.toFixed(3)} m
-                        </p>
-                        <p className="text-xs text-gray-400">mean effect</p>
-                      </div>
-                    </div>
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExportPdf(item.id)}
+                      className="p-2 bg-cyan-500/20 hover:bg-cyan-500/30 rounded-lg text-cyan-400"
+                      title="Export PDF"
+                    >
+                      <FileDown size={18} />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

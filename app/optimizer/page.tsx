@@ -21,6 +21,7 @@ import {
   Search,
   ChevronRight,
 } from 'lucide-react';
+import RiskDisclaimer from '@/app/components/RiskDisclaimer';
 import { fetchWithAuth } from '@/lib/api';
 
 interface SiteData {
@@ -214,6 +215,10 @@ function OptimizerContent() {
               <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
+
+          <div className="mx-8 mt-4">
+            <RiskDisclaimer variant="optimizer" />
+          </div>
 
           {/* This inner container holds the dashboard panels */}
           <div className="flex-1 flex gap-6 p-8 overflow-hidden">
