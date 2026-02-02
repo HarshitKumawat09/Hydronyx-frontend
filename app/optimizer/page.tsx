@@ -184,6 +184,18 @@ function OptimizerContent() {
             <CheckCircle size={20} />
             {sidebarOpen && <span className="text-sm font-medium">Validation</span>}
           </Link>
+          <Link href="/location-gw" className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition cursor-pointer text-gray-400 hover:bg-slate-800/50`}>
+            <MapPin size={20} />
+            {sidebarOpen && <span className="text-sm font-medium">Location Insight</span>}
+          </Link>
+          <Link href="/alerts" className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition cursor-pointer text-gray-400 hover:bg-slate-800/50`}>
+            <AlertCircle size={20} />
+            {sidebarOpen && <span className="text-sm font-medium">Alerts</span>}
+          </Link>
+          <Link href="/drivers" className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition cursor-pointer text-gray-400 hover:bg-slate-800/50`}>
+            <BarChart3 size={20} />
+            {sidebarOpen && <span className="text-sm font-medium">Drivers</span>}
+          </Link>
         </nav>
       </div>
 
