@@ -266,6 +266,16 @@ function ValidationContent() {
                   Overview
                 </button>
                 <button
+                  onClick={() => setActiveTab('results')}
+                  className={`px-6 py-3 font-medium transition ${
+                    activeTab === 'results'
+                      ? 'border-b-2 border-cyan-400 text-cyan-400'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Results
+                </button>
+                <button
                   onClick={() => setActiveTab('history')}
                   className={`px-6 py-3 font-medium transition ${
                     activeTab === 'history'
@@ -402,6 +412,153 @@ function ValidationContent() {
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* Results Tab */}
+              {activeTab === 'results' && (
+                <div className="space-y-8">
+                  {/* Header */}
+                  <div className="text-center mb-8">
+                    <h2 className="text-3xl font-bold text-white mb-4">Model Accuracy Results</h2>
+                    <p className="text-gray-400">Comprehensive evaluation of baseline vs GNN model performance</p>
+                  </div>
+
+                  {/* Model Comparison Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    {/* Baseline Model */}
+                    <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-8">
+                      <h3 className="text-xl font-bold text-red-400 mb-6 flex items-center gap-2">
+                        <TrendingDown size={24} />
+                        Baseline Model (Linear Regression)
+                      </h3>
+                      <div className="space-y-4">
+                        {validationData.comparison_table.map((row, idx) => (
+                          <div key={idx} className="flex justify-between items-center py-2 border-b border-red-500/20">
+                            <span className="text-gray-300">{row.metric_name}</span>
+                            <span className="text-red-400 font-semibold">{row.baseline_value.toFixed(4)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-6 p-4 bg-red-500/20 rounded-lg">
+                        <p className="text-sm text-red-300">
+                          Traditional statistical approach using rainfall and lagged groundwater data
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* GNN Model */}
+                    <div className="bg-gradient-to-br from-green-500/10 to-cyan-500/10 border border-green-500/30 rounded-xl p-8">
+                      <h3 className="text-xl font-bold text-green-400 mb-6 flex items-center gap-2">
+                        <TrendingUp size={24} />
+                        GNN Model (Spatiotemporal)
+                      </h3>
+                      <div className="space-y-4">
+                        {validationData.comparison_table.map((row, idx) => (
+                          <div key={idx} className="flex justify-between items-center py-2 border-b border-green-500/20">
+                            <span className="text-gray-300">{row.metric_name}</span>
+                            <span className="text-green-400 font-semibold">{row.gnn_model_value.toFixed(4)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-6 p-4 bg-green-500/20 rounded-lg">
+                        <p className="text-sm text-green-300">
+                          Advanced physics-informed graph neural network with spatiotemporal features
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Improvements Summary */}
+                  <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl p-8">
+                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                      <Target size={24} />
+                      Performance Improvements
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      {validationData.comparison_table.map((row, idx) => (
+                        <div key={idx} className="text-center">
+                          <div className="text-3xl font-bold text-green-400 mb-2">
+                            +{row.improvement_percentage.toFixed(1)}%
+                          </div>
+                          <div className="text-sm text-gray-400">{row.metric_name}</div>
+                          <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                            <div
+                              className="bg-gradient-to-r from-cyan-500 to-green-500 h-2 rounded-full"
+                              style={{ width: `${Math.min(row.improvement_percentage, 100)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Target Achievement */}
+                  <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-8">
+                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                      <CheckCircle size={24} />
+                      Target Achievement
+                    </h3>
+                    <div className="flex items-center justify-center space-x-8">
+                      <div className="text-center">
+                        <div className="text-4xl font-bold text-yellow-400 mb-2">
+                          {(validationData.metrics.r_squared * 100).toFixed(1)}%
+                        </div>
+                        <div className="text-sm text-gray-400">Current R² Score</div>
+                      </div>
+                      <div className="text-2xl text-gray-500">vs</div>
+                      <div className="text-center">
+                        <div className="text-4xl font-bold text-green-400 mb-2">88.0%</div>
+                        <div className="text-sm text-gray-400">Target Score</div>
+                      </div>
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold ${validationData.metrics.r_squared >= 0.88 ? 'text-green-400' : 'text-red-400'}`}>
+                          {validationData.metrics.r_squared >= 0.88 ? '✅ PASSED' : '❌ FAILED'}
+                        </div>
+                        <div className="text-sm text-gray-400">Status</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Detailed Results Table */}
+                  <div className="bg-gradient-to-br from-slate-500/10 to-gray-500/10 border border-slate-500/30 rounded-xl p-8">
+                    <h3 className="text-xl font-bold text-white mb-6">Detailed Results Summary</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-500/20">
+                            <th className="text-left px-4 py-3 text-gray-400 font-semibold">Metric</th>
+                            <th className="text-right px-4 py-3 text-gray-400 font-semibold">Baseline</th>
+                            <th className="text-right px-4 py-3 text-gray-400 font-semibold">GNN</th>
+                            <th className="text-right px-4 py-3 text-gray-400 font-semibold">Improvement</th>
+                            <th className="text-center px-4 py-3 text-gray-400 font-semibold">Direction</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {validationData.comparison_table.map((row, idx) => (
+                            <tr key={idx} className="border-b border-slate-500/10 hover:bg-slate-800/30 transition">
+                              <td className="px-4 py-3 text-white font-medium">{row.metric_name}</td>
+                              <td className="px-4 py-3 text-right text-red-400">{row.baseline_value.toFixed(4)}</td>
+                              <td className="px-4 py-3 text-right text-green-400">{row.gnn_model_value.toFixed(4)}</td>
+                              <td className="px-4 py-3 text-right text-cyan-400 font-semibold">
+                                +{row.improvement_percentage.toFixed(2)}%
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {row.metric_name.includes('R²') || row.metric_name.includes('Accuracy') ? (
+                                  <span className="text-green-400">↑ Higher Better</span>
+                                ) : (
+                                  <span className="text-blue-400">↓ Lower Better</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-6 text-center text-gray-400 text-sm">
+                      Last updated: {new Date(validationData.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* History Tab */}
