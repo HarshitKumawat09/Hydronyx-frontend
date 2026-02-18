@@ -94,6 +94,7 @@ export default function ConfidenceMap() {
       }, 500);
     }
 
+    // This return MUST be outside the 'if' block
     return () => {
       if (timer) clearTimeout(timer);
     };
